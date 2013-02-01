@@ -22,6 +22,7 @@ module Fluent
     config_param :time_key    , :string  , :default => nil
     config_param :time_format , :string  , :default => nil
     config_param :tag_key     , :string  , :default => 'tag'
+    config_param :mode        , :string  , :default => 'priv_msg'
 
 
     def initialize
@@ -43,7 +44,7 @@ module Fluent
       begin
         @client = IRCConnection.connect(@host, @port)
       rescue
-        raise Fluent::ConfigError, "failto connect IRC server #{@host}:#{@port}"
+        raise Fluent::ConfigError, "failed to connect IRC server #{@host}:#{@port}"
       end
 
       @client.channel = '#'+@channel
@@ -63,7 +64,11 @@ module Fluent
       chain.next
       es.each do |time,record|
         filter_record(tag, time, record)
-        IRCParser.message(:priv_msg) do |m|
+        mode = :priv_msg
+        if @mode == 'notice'
+          mode = :notice
+        end
+        IRCParser.message(mode) do |m|
           m.target = @client.channel
           m.body = build_message(record)
           @client.send m
